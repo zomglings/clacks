@@ -92,6 +92,7 @@ def handle_status(args: argparse.Namespace) -> None:
     from slack_sdk.errors import SlackApiError
 
     try:
+        ensure_db_updated(config_dir=args.config_dir)
         with get_session(args.config_dir) as session:
             context = get_current_context(session)
             if context is None:
@@ -138,6 +139,7 @@ def handle_logout(args: argparse.Namespace) -> None:
     from slack_sdk.errors import SlackApiError
 
     try:
+        ensure_db_updated(config_dir=args.config_dir)
         with get_session(args.config_dir) as session:
             if args.context:
                 context = get_context(session, args.context)
