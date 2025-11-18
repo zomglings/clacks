@@ -2,8 +2,10 @@ import argparse
 
 from slack_clacks.configuration.database import (
     add_context,
+    delete_context,
     ensure_db_updated,
     get_context,
+    get_current_context,
     get_session,
     set_current_context,
     update_context,
@@ -85,6 +87,87 @@ def handle_cert_info(args: argparse.Namespace) -> None:
     print(f"  Private key: {cert_info['key_path']}")
 
 
+def handle_status(args: argparse.Namespace) -> None:
+    from slack_sdk import WebClient
+    from slack_sdk.errors import SlackApiError
+
+    try:
+        ensure_db_updated(config_dir=args.config_dir)
+        with get_session(args.config_dir) as session:
+            context = get_current_context(session)
+            if context is None:
+                print("No active authentication context.")
+                print("Authenticate with: clacks auth login")
+                raise SystemExit(1)
+
+            client = WebClient(token=context.access_token)
+
+            user_name = None
+            user_email = None
+            try:
+                user_response = client.users_info(user=context.user_id)
+                user = user_response["user"]
+                user_name = user.get("real_name")
+                user_email = user.get("profile", {}).get("email")
+            except SlackApiError:
+                pass
+
+            workspace_name = None
+            try:
+                team_response = client.team_info()
+                team = team_response["team"]
+                workspace_name = team.get("name")
+            except SlackApiError:
+                pass
+
+            print(f"Context: {context.name}")
+            if user_name:
+                print(f"User: {user_name}")
+            print(f"User ID: {context.user_id}")
+            if user_email:
+                print(f"Email: {user_email}")
+            print(f"Workspace ID: {context.workspace_id}")
+            if workspace_name:
+                print(f"Workspace: {workspace_name}")
+    except Exception as e:
+        print(f"Failed to retrieve authentication status: {e}")
+        raise SystemExit(1)
+
+
+def handle_logout(args: argparse.Namespace) -> None:
+    from slack_sdk import WebClient
+    from slack_sdk.errors import SlackApiError
+
+    try:
+        ensure_db_updated(config_dir=args.config_dir)
+        with get_session(args.config_dir) as session:
+            if args.context:
+                context = get_context(session, args.context)
+                if context is None:
+                    print(f"Context '{args.context}' not found.")
+                    raise SystemExit(1)
+            else:
+                context = get_current_context(session)
+                if context is None:
+                    print("No active authentication context.")
+                    raise SystemExit(1)
+
+            client = WebClient(token=context.access_token)
+
+            try:
+                client.auth_revoke()
+            except SlackApiError as e:
+                print(f"Failed to revoke token: {e.response['error']}")
+                raise SystemExit(1)
+
+            delete_context(session, context.name)
+            print(f"Logged out and deleted context: {context.name}")
+
+    except Exception as e:
+        print(f"Logout failed: {e}")
+        raise SystemExit(1)
+
+
 def generate_cli() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Slack authentication commands",
@@ -143,5 +226,34 @@ def generate_cli() -> argparse.ArgumentParser:
         help="Configuration directory (default: platform-specific user config dir)",
     )
     cert_info_parser.set_defaults(func=handle_cert_info)
+
+    status_parser = subparsers.add_parser(
+        "status", help="Show current authentication status"
+    )
+    status_parser.add_argument(
+        "-D",
+        "--config-dir",
+        type=str,
+        default=None,
+        help="Configuration directory (default: platform-specific user config dir)",
+    )
+    status_parser.set_defaults(func=handle_status)
+
+    logout_parser = subparsers.add_parser("logout", help="Log out and delete context")
+    logout_parser.add_argument(
+        "-D",
+        "--config-dir",
+        type=str,
+        default=None,
+        help="Configuration directory (default: platform-specific user config dir)",
+    )
+    logout_parser.add_argument(
+        "-c",
+        "--context",
+        type=str,
+        default=None,
+        help="Context name to logout (default: current context)",
+    )
+    logout_parser.set_defaults(func=handle_logout)
 
     return parser
