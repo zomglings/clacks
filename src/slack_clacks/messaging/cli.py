@@ -1,7 +1,8 @@
 import argparse
+import json
+import sys
 
 from slack_sdk import WebClient
-from slack_sdk.errors import SlackApiError
 
 from slack_clacks.configuration.database import (
     ensure_db_updated,
@@ -18,49 +19,41 @@ from .operations import (
 
 
 def handle_send(args: argparse.Namespace) -> None:
-    try:
-        ensure_db_updated(config_dir=args.config_dir)
-        with get_session(args.config_dir) as session:
-            context = get_current_context(session)
-            if context is None:
-                print("No active authentication context.")
-                print("Authenticate with: clacks auth login")
-                raise SystemExit(1)
+    ensure_db_updated(config_dir=args.config_dir)
+    with get_session(args.config_dir) as session:
+        context = get_current_context(session)
+        if context is None:
+            raise ValueError(
+                "No active authentication context. Authenticate with: clacks auth login"
+            )
 
-            client = WebClient(token=context.access_token)
+        client = WebClient(token=context.access_token)
 
-            channel_id = None
+        channel_id = None
 
-            if args.channel:
-                channel_id = resolve_channel_id(client, args.channel)
-                if channel_id is None:
-                    print(f"Channel '{args.channel}' not found.")
-                    raise SystemExit(1)
-            elif args.user:
-                user_id = resolve_user_id(client, args.user)
-                if user_id is None:
-                    print(f"User '{args.user}' not found.")
-                    raise SystemExit(1)
-                channel_id = open_dm_channel(client, user_id)
-                if channel_id is None:
-                    print(f"Failed to open DM with user '{args.user}'.")
-                    raise SystemExit(1)
-            else:
-                print("Must specify either --channel or --user.")
-                raise SystemExit(1)
+        if args.channel:
+            channel_id = resolve_channel_id(client, args.channel)
+            if channel_id is None:
+                raise ValueError(f"Channel '{args.channel}' not found.")
+        elif args.user:
+            user_id = resolve_user_id(client, args.user)
+            if user_id is None:
+                raise ValueError(f"User '{args.user}' not found.")
+            channel_id = open_dm_channel(client, user_id)
+            if channel_id is None:
+                raise ValueError(f"Failed to open DM with user '{args.user}'.")
+        else:
+            raise ValueError("Must specify either --channel or --user.")
 
-            try:
-                response = send_message(
-                    client, channel_id, args.message, thread_ts=args.thread
-                )
-                print(f"Message sent: {response['ts']}")
-            except SlackApiError as e:
-                print(f"Failed to send message: {e.response['error']}")
-                raise SystemExit(1)
+        response = send_message(client, channel_id, args.message, thread_ts=args.thread)
 
-    except Exception as e:
-        print(f"Send failed: {e}")
-        raise SystemExit(1)
+        output = {
+            "status": "success",
+            "timestamp": response["ts"],
+            "channel": response["channel"],
+        }
+        with args.outfile as ofp:
+            json.dump(output, ofp)
 
 
 def generate_send_parser() -> argparse.ArgumentParser:
@@ -99,6 +92,13 @@ def generate_send_parser() -> argparse.ArgumentParser:
         "--thread",
         type=str,
         help="Thread timestamp for replying to thread",
+    )
+    parser.add_argument(
+        "-o",
+        "--outfile",
+        type=argparse.FileType("a"),
+        default=sys.stdout,
+        help="Output file for JSON results (default: stdout)",
     )
     parser.set_defaults(func=handle_send)
 
