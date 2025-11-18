@@ -174,4 +174,6 @@ def set_current_context(session: Session, context_name: str) -> CurrentContext:
 
 def list_contexts(session: Session, limit: int, offset: int) -> list[Context]:
     """List contexts with pagination."""
-    return session.query(Context).limit(limit).offset(offset).all()
+    return (
+        session.query(Context).order_by(Context.name).limit(limit).offset(offset).all()
+    )

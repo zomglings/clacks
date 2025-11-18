@@ -59,6 +59,7 @@ def handle_info(args: argparse.Namespace) -> None:
 
 def handle_contexts(args: argparse.Namespace) -> None:
     try:
+        ensure_db_updated(config_dir=args.config_dir)
         with get_session(args.config_dir) as session:
             contexts = list_contexts(session, limit=args.limit, offset=args.offset)
             current = get_current_context(session)
@@ -80,6 +81,7 @@ def handle_contexts(args: argparse.Namespace) -> None:
 
 def handle_switch(args: argparse.Namespace) -> None:
     try:
+        ensure_db_updated(config_dir=args.config_dir)
         with get_session(args.config_dir) as session:
             from slack_clacks.configuration.database import get_context
 
