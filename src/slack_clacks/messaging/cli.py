@@ -47,13 +47,8 @@ def handle_send(args: argparse.Namespace) -> None:
 
         response = send_message(client, channel_id, args.message, thread_ts=args.thread)
 
-        output = {
-            "status": "success",
-            "timestamp": response["ts"],
-            "channel": response["channel"],
-        }
         with args.outfile as ofp:
-            json.dump(output, ofp)
+            json.dump(response.data, ofp)
 
 
 def generate_send_parser() -> argparse.ArgumentParser:
