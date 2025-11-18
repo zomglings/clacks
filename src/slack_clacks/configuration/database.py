@@ -151,6 +151,15 @@ def get_current_context(session: Session) -> Context | None:
     return get_context(session, current_entry.context_name)
 
 
+def delete_context(session: Session, name: str) -> None:
+    """Delete a context from the database."""
+    context = get_context(session, name)
+    if context is None:
+        raise ValueError(f"Context '{name}' does not exist")
+    session.delete(context)
+    session.flush()
+
+
 def set_current_context(session: Session, context_name: str) -> CurrentContext:
     """Set the current context by adding an entry to current_context history."""
     from datetime import UTC, datetime

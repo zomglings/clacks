@@ -2,6 +2,7 @@ import argparse
 
 from slack_clacks.configuration.database import (
     add_context,
+    delete_context,
     ensure_db_updated,
     get_context,
     get_current_context,
@@ -132,6 +133,39 @@ def handle_status(args: argparse.Namespace) -> None:
         raise SystemExit(1)
 
 
+def handle_logout(args: argparse.Namespace) -> None:
+    from slack_sdk import WebClient
+    from slack_sdk.errors import SlackApiError
+
+    try:
+        with get_session(args.config_dir) as session:
+            if args.context:
+                context = get_context(session, args.context)
+                if context is None:
+                    print(f"Context '{args.context}' not found.")
+                    raise SystemExit(1)
+            else:
+                context = get_current_context(session)
+                if context is None:
+                    print("No active authentication context.")
+                    raise SystemExit(1)
+
+            client = WebClient(token=context.access_token)
+
+            try:
+                client.auth_revoke()
+            except SlackApiError as e:
+                print(f"Failed to revoke token: {e.response['error']}")
+                raise SystemExit(1)
+
+            delete_context(session, context.name)
+            print(f"Logged out and deleted context: {context.name}")
+
+    except Exception as e:
+        print(f"Logout failed: {e}")
+        raise SystemExit(1)
+
+
 def generate_cli() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Slack authentication commands",
@@ -202,5 +236,22 @@ def generate_cli() -> argparse.ArgumentParser:
         help="Configuration directory (default: platform-specific user config dir)",
     )
     status_parser.set_defaults(func=handle_status)
+
+    logout_parser = subparsers.add_parser("logout", help="Log out and delete context")
+    logout_parser.add_argument(
+        "-D",
+        "--config-dir",
+        type=str,
+        default=None,
+        help="Configuration directory (default: platform-specific user config dir)",
+    )
+    logout_parser.add_argument(
+        "-c",
+        "--context",
+        type=str,
+        default=None,
+        help="Context name to logout (default: current context)",
+    )
+    logout_parser.set_defaults(func=handle_logout)
 
     return parser
