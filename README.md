@@ -53,6 +53,8 @@ clacks config info
 
 ## Messaging
 
+### Send
+
 Send to channel:
 ```bash
 clacks send -c "#general" -m "message text"
@@ -68,6 +70,37 @@ clacks send -u "U123456" -m "message text"
 Reply to thread:
 ```bash
 clacks send -c "#general" -m "reply text" -t "1234567890.123456"
+```
+
+### Read
+
+Read messages from channel:
+```bash
+clacks read -c "#general"
+clacks read -c "#general" -l 50
+```
+
+Read direct messages:
+```bash
+clacks read -u "@username"
+```
+
+Read thread:
+```bash
+clacks read -c "#general" -t "1234567890.123456"
+```
+
+Read specific message:
+```bash
+clacks read -c "#general" -m "1234567890.123456"
+```
+
+### Recent
+
+View recent messages across all conversations:
+```bash
+clacks recent
+clacks recent -l 50
 ```
 
 ## Output
