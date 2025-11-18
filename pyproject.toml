@@ -7,11 +7,22 @@ authors = [
     { name = "Neeraj Kashyap", email = "nkashy1@gmail.com" }
 ]
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "alembic>=1.17.2",
+    "platformdirs>=4.5.0",
+    "slack-sdk>=3.38.0",
+    "sqlalchemy>=2.0.44",
+]
 
 [project.scripts]
-slack-clacks = "slack_clacks:main"
+clacks = "slack_clacks:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "black>=25.11.0",
+    "mypy>=1.18.2",
+]
