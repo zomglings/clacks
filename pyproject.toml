@@ -9,6 +9,7 @@ authors = [
 requires-python = ">=3.13"
 dependencies = [
     "alembic>=1.17.2",
+    "cryptography>=44.0.0",
     "platformdirs>=4.5.0",
     "slack-sdk>=3.38.0",
     "sqlalchemy>=2.0.44",
@@ -23,6 +24,22 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
-    "black>=25.11.0",
     "mypy>=1.18.2",
+    "ruff>=0.8.4",
 ]
+
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort (import sorting)
+    "TID252", # ban relative imports
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["slack_clacks"]

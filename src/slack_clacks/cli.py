@@ -1,6 +1,7 @@
 import argparse
 
-from slack_clacks.configuration.cli import generate_cli as generate_init_cli
+from slack_clacks.auth.cli import generate_cli as generate_auth_cli
+from slack_clacks.configuration.cli import generate_cli as generate_config_cli
 
 
 def generate_cli() -> argparse.ArgumentParser:
@@ -10,9 +11,17 @@ def generate_cli() -> argparse.ArgumentParser:
     parser.set_defaults(func=lambda _: parser.print_help())
     subparsers = parser.add_subparsers()
 
-    init_parser = generate_init_cli()
+    config_parser = generate_config_cli()
     subparsers.add_parser(
-        "init", parents=[init_parser], add_help=False, help=init_parser.description
+        "config",
+        parents=[config_parser],
+        add_help=False,
+        help=config_parser.description,
+    )
+
+    auth_parser = generate_auth_cli()
+    subparsers.add_parser(
+        "auth", parents=[auth_parser], add_help=False, help=auth_parser.description
     )
 
     return parser

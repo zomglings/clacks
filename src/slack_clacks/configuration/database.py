@@ -2,17 +2,17 @@
 Database initialization and management utilities.
 """
 
-import os
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator
 
 from alembic import command
 from alembic.config import Config
 from platformdirs import user_config_dir
-from sqlalchemy import create_engine, Connection
+from sqlalchemy import Connection, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from slack_clacks.configuration.models import Base, Context, CurrentContext
+from slack_clacks.configuration.models import Context, CurrentContext
 
 
 def get_config_dir(config_dir: str | Path | None = None) -> Path:
@@ -55,6 +55,7 @@ def get_engine(config_dir: str | Path | None = None):
     return engine
 
 
+@contextmanager
 def get_session(
     config_dir: str | Path | None = None,
 ) -> Generator[Session, None, None]:
@@ -81,7 +82,8 @@ def get_session(
 
 def run_migrations(connection: Connection) -> None:
     """
-    Run Alembic migrations programmatically to upgrade the database to the latest version.
+    Run Alembic migrations programmatically to upgrade the database to the
+    latest version.
     """
     alembic_cfg = Config()
 
@@ -94,7 +96,7 @@ def run_migrations(connection: Connection) -> None:
     command.upgrade(alembic_cfg, "head")
 
 
-def ensure_db_initialized(config_dir: str | Path | None = None) -> None:
+def ensure_db_updated(config_dir: str | Path | None = None) -> None:
     """
     Ensure the database is initialized and up-to-date.
     Runs migrations to create or upgrade the database schema.
@@ -119,9 +121,29 @@ def add_context(
     return context
 
 
+def update_context(
+    session: Session, name: str, access_token: str, user_id: str, workspace_id: str
+) -> Context:
+    """Update an existing context in the database."""
+    context = session.query(Context).filter(Context.name == name).first()
+    if context is None:
+        raise ValueError(f"Context '{name}' does not exist")
+
+    context.access_token = access_token
+    context.user_id = user_id
+    context.workspace_id = workspace_id
+    session.flush()
+    return context
+
+
+def get_context(session: Session, name: str) -> Context | None:
+    """Get a context by name."""
+    return session.query(Context).filter(Context.name == name).first()
+
+
 def set_current_context(session: Session, context_name: str) -> CurrentContext:
     """Set the current context by adding an entry to current_context history."""
-    from datetime import datetime, UTC
+    from datetime import UTC, datetime
 
     current_context = CurrentContext(
         timestamp=datetime.now(UTC), context_name=context_name
