@@ -1,0 +1,17 @@
+[project]
+name = "slack-clacks"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Neeraj Kashyap", email = "nkashy1@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = []
+
+[project.scripts]
+slack-clacks = "slack_clacks:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
