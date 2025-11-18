@@ -1,4 +1,6 @@
 import argparse
+import json
+import sys
 from pathlib import Path
 
 from sqlalchemy import text
@@ -15,15 +17,23 @@ def handle_init(args: argparse.Namespace) -> None:
     config_dir = args.config_dir
     ensure_db_updated(config_dir=config_dir)
     actual_dir = get_config_dir(config_dir)
-    print(f"Initialized configuration database at {actual_dir}")
+
+    output = {"status": "initialized", "config_dir": str(actual_dir)}
+    with args.outfile as ofp:
+        json.dump(output, ofp)
 
 
 def handle_info(args: argparse.Namespace) -> None:
     config_dir_path = get_config_dir(args.config_dir)
     db_path = get_db_path(args.config_dir)
 
-    print(f"Configuration directory: {config_dir_path}")
-    print(f"Database: {db_path}")
+    output = {
+        "config_dir": str(config_dir_path),
+        "database": str(db_path),
+        "current_context": None,
+        "user_id": None,
+        "workspace_id": None,
+    }
 
     try:
         with get_session(args.config_dir) as session:
@@ -36,7 +46,7 @@ def handle_info(args: argparse.Namespace) -> None:
 
             if result:
                 current_context = result[0]
-                print(f"Current context: {current_context}")
+                output["current_context"] = current_context
 
                 context_result = session.execute(
                     text(
@@ -46,12 +56,13 @@ def handle_info(args: argparse.Namespace) -> None:
                 ).fetchone()
 
                 if context_result:
-                    print(f"  User ID: {context_result[0]}")
-                    print(f"  Workspace ID: {context_result[1]}")
-            else:
-                print("Current context: (none)")
-    except Exception as e:
-        print(f"No configuration database found or error: {e}")
+                    output["user_id"] = context_result[0]
+                    output["workspace_id"] = context_result[1]
+    except Exception:
+        pass
+
+    with args.outfile as ofp:
+        json.dump(output, ofp)
 
 
 def generate_cli() -> argparse.ArgumentParser:
@@ -70,6 +81,13 @@ def generate_cli() -> argparse.ArgumentParser:
         default=None,
         help="Directory in which to store the configuration database",
     )
+    init_parser.add_argument(
+        "-o",
+        "--outfile",
+        type=argparse.FileType("a"),
+        default=sys.stdout,
+        help="Output file for JSON results (default: stdout)",
+    )
     init_parser.set_defaults(func=handle_init)
 
     info_parser = subparsers.add_parser("info", help="Show current configuration")
@@ -79,6 +97,13 @@ def generate_cli() -> argparse.ArgumentParser:
         type=Path,
         default=None,
         help="Configuration directory (default: platform-specific user config dir)",
+    )
+    info_parser.add_argument(
+        "-o",
+        "--outfile",
+        type=argparse.FileType("a"),
+        default=sys.stdout,
+        help="Output file for JSON results (default: stdout)",
     )
     info_parser.set_defaults(func=handle_info)
 
