@@ -1,4 +1,5 @@
 import http.server
+import secrets
 import ssl
 import threading
 import urllib.parse
@@ -9,8 +10,8 @@ from typing import Dict, Optional
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
-from .cert import ensure_cert_exists
-from .constants import (
+from slack_clacks.auth.cert import ensure_cert_exists
+from slack_clacks.auth.constants import (
     CLIENT_ID,
     CLIENT_SECRET,
     DEFAULT_USER_SCOPES,
@@ -22,11 +23,25 @@ from .constants import (
 class OAuthCallbackHandler(http.server.BaseHTTPRequestHandler):
     authorization_code: Optional[str] = None
     error: Optional[str] = None
+    expected_state: Optional[str] = None
 
     def do_GET(self):
         parsed_path = urllib.parse.urlparse(self.path)
         if parsed_path.path == "/callback":
             query_params = urllib.parse.parse_qs(parsed_path.query)
+
+            received_state = query_params.get("state", [None])[0]
+            if received_state != OAuthCallbackHandler.expected_state:
+                OAuthCallbackHandler.error = "state_mismatch"
+                self.send_response(400)
+                self.send_header("Content-type", "text/html")
+                self.end_headers()
+                self.wfile.write(
+                    b"<html><body><h1>Authentication failed</h1>"
+                    b"<p>Error: State validation failed - potential CSRF attack</p>"
+                    b"</body></html>"
+                )
+                return
 
             if "code" in query_params:
                 OAuthCallbackHandler.authorization_code = query_params["code"][0]
@@ -63,16 +78,19 @@ def start_oauth_flow(
         scopes = DEFAULT_USER_SCOPES
 
     scope_string = ",".join(scopes)
+    state = secrets.token_urlsafe(32)
 
     auth_url = (
         f"https://slack.com/oauth/v2/authorize?"
         f"client_id={CLIENT_ID}&"
         f"user_scope={urllib.parse.quote(scope_string)}&"
-        f"redirect_uri={urllib.parse.quote(REDIRECT_URI)}"
+        f"redirect_uri={urllib.parse.quote(REDIRECT_URI)}&"
+        f"state={urllib.parse.quote(state)}"
     )
 
     OAuthCallbackHandler.authorization_code = None
     OAuthCallbackHandler.error = None
+    OAuthCallbackHandler.expected_state = state
 
     cert_path, key_path = ensure_cert_exists(config_dir)
 
