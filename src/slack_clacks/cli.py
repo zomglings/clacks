@@ -17,7 +17,7 @@ def generate_cli() -> argparse.ArgumentParser:
     parser.add_argument(
         "--version",
         action="version",
-        version=f"clacks {version('slack-clacks')}",
+        version=version("slack-clacks"),
     )
     parser.set_defaults(func=lambda _: parser.print_help())
     subparsers = parser.add_subparsers()
