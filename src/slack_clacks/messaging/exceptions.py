@@ -13,3 +13,9 @@ class ClacksChannelNotFoundError(Exception):
     """Raised when a channel lookup fails."""
 
     pass
+
+
+class ClacksMessageNotFoundError(Exception):
+    """Raised when a message with specific timestamp is not found."""
+
+    pass

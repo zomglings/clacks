@@ -5,7 +5,11 @@ Core messaging operations using Slack Web API.
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
-from .exceptions import ClacksChannelNotFoundError, ClacksUserNotFoundError
+from .exceptions import (
+    ClacksChannelNotFoundError,
+    ClacksMessageNotFoundError,
+    ClacksUserNotFoundError,
+)
 
 
 def resolve_channel_id(client: WebClient, channel_identifier: str) -> str:
@@ -62,6 +66,27 @@ def resolve_user_id(client: WebClient, user_identifier: str) -> str:
         raise ClacksUserNotFoundError(user_identifier) from e
 
     raise ClacksUserNotFoundError(user_identifier)
+
+
+def resolve_message_timestamp(
+    client: WebClient, channel_id: str, timestamp: str
+) -> str:
+    """
+    Resolve and validate that a message with the exact timestamp exists.
+    Returns timestamp if found, raises ClacksMessageNotFoundError if not.
+    """
+    ts = float(timestamp)
+    response = client.conversations_history(
+        channel=channel_id,
+        limit=100,
+        latest=str(ts + 1),
+        oldest=str(ts - 1),
+        inclusive=True,
+    )
+    messages: list = response.get("messages", [])
+    if not any(m.get("ts") == timestamp for m in messages):
+        raise ClacksMessageNotFoundError(timestamp)
+    return timestamp
 
 
 def open_dm_channel(client: WebClient, user_id: str) -> str | None:
