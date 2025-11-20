@@ -1,4 +1,5 @@
 import argparse
+from importlib.metadata import version
 
 from slack_clacks.auth.cli import generate_cli as generate_auth_cli
 from slack_clacks.configuration.cli import generate_cli as generate_config_cli
@@ -12,6 +13,11 @@ from slack_clacks.messaging.cli import (
 def generate_cli() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="clacks: Control Slack from your command line"
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=version("slack-clacks"),
     )
     parser.set_defaults(func=lambda _: parser.print_help())
     subparsers = parser.add_subparsers()
