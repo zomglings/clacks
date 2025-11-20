@@ -52,6 +52,7 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
+          attestations: false
 
       - name: Create release
         if: steps.check_release.outputs.exists == 'false' && steps.pypi_publish.outcome == 'success'
