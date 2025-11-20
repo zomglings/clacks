@@ -11,7 +11,6 @@ from slack_clacks.configuration.database import (
     get_session,
 )
 
-from .exceptions import ClacksMessageNotFoundError
 from .operations import (
     add_reaction,
     get_recent_activity,
@@ -20,6 +19,7 @@ from .operations import (
     read_thread,
     remove_reaction,
     resolve_channel_id,
+    resolve_message_timestamp,
     resolve_user_id,
     send_message,
 )
@@ -136,19 +136,10 @@ def handle_read(args: argparse.Namespace) -> None:
         if args.thread:
             response = read_thread(client, channel_id, args.thread, limit=args.limit)
         elif args.message:
-            ts = float(args.message)
+            resolve_message_timestamp(client, channel_id, args.message)
             response = read_messages(
-                client,
-                channel_id,
-                limit=100,
-                latest=str(ts + 1),
-                oldest=str(ts - 1),
+                client, channel_id, limit=1, latest=args.message, oldest=args.message
             )
-            messages = response.get("messages", [])
-            matching = [m for m in messages if m.get("ts") == args.message]
-            if not matching:
-                raise ClacksMessageNotFoundError(args.message)
-            response.data["messages"] = matching
         else:
             response = read_messages(
                 client, channel_id, limit=args.limit, latest=None, oldest=None
@@ -283,6 +274,8 @@ def handle_react(args: argparse.Namespace) -> None:
             if dm_channel is None:
                 raise ValueError(f"Failed to open DM with user '{args.user}'.")
             channel_id = dm_channel
+
+        resolve_message_timestamp(client, channel_id, args.message)
 
         if args.remove:
             response = remove_reaction(client, channel_id, args.message, args.emoji)
