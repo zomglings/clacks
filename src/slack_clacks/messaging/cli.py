@@ -11,6 +11,7 @@ from slack_clacks.configuration.database import (
     get_session,
 )
 
+from .exceptions import ClacksMessageNotFoundError
 from .operations import (
     add_reaction,
     get_recent_activity,
@@ -135,9 +136,19 @@ def handle_read(args: argparse.Namespace) -> None:
         if args.thread:
             response = read_thread(client, channel_id, args.thread, limit=args.limit)
         elif args.message:
+            ts = float(args.message)
             response = read_messages(
-                client, channel_id, limit=1, latest=args.message, oldest=None
+                client,
+                channel_id,
+                limit=100,
+                latest=str(ts + 1),
+                oldest=str(ts - 1),
             )
+            messages = response.get("messages", [])
+            matching = [m for m in messages if m.get("ts") == args.message]
+            if not matching:
+                raise ClacksMessageNotFoundError(args.message)
+            response.data["messages"] = matching
         else:
             response = read_messages(
                 client, channel_id, limit=args.limit, latest=None, oldest=None
